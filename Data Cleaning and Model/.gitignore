@@ -136,6 +136,14 @@ ui-tests/playwright-report
 ui-tests/.yarn/*
 ui-tests/.pnp.*
 
+# virtualenv
+env/*
+.venv/*
+
+# nltk
+nltk_data/*
+
+# dotenv
 .env
-env
-.venv
+
+images/*

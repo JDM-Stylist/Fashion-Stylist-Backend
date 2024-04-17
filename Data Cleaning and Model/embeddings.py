@@ -1,51 +1,72 @@
 import os
 import numpy as np
-import cv2
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+from numpy.linalg import norm
+import pandas as pd
+import tensorflow
 from tensorflow.keras.preprocessing import image
+from tensorflow.keras.layers import GlobalMaxPooling2D
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 import pickle
+from tqdm import tqdm
 
-def load_image(img_path):
-    try:
-        return cv2.imread(img_path)
-    except Exception as e:
-        print("An error occurred while loading the image:", e)
-        return None
 
-def preprocess_image(img):
-    img = cv2.resize(img, (224, 224))
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = preprocess_input(img)
-    return img
+model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+model.trainable = False
+
+model = tensorflow.keras.Sequential([
+    model,
+    GlobalMaxPooling2D()
+])
+
+
+def extract_title(image_folder):
+    # Extract title from the folder name
+    return os.path.basename(os.path.normpath(image_folder))
+
 
 def generate_embeddings(image_folder, model):
-    embeddings = []
-    img_paths = []
+    normalized_result = []
+
+    title = extract_title(image_folder)
 
     for filename in os.listdir(image_folder):
         img_path = os.path.join(image_folder, filename)
-        img = load_image(img_path)
-        if img is not None:
-            img = preprocess_image(img)
-            img = np.expand_dims(img, axis=0)
-            emb = model.predict(img).flatten()
-            embeddings.append(emb)
-            img_paths.append(img_path)
+        img = image.load_img(img_path, target_size=(224, 224))
+        img_array = image.img_to_array(img)
+        expanded_img_array = np.expand_dims(img_array, axis=0)
+        preprocessed_img = preprocess_input(expanded_img_array)
+        result = model.predict(preprocessed_img).flatten()
+        normalized_result.append((title, result / norm(result)))
 
-    return embeddings, img_paths
+    return normalized_result
 
-# Load pre-trained ResNet50 model
-model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
-# Path to the folder containing images
-image_folder = './images/'
+# Path to the folder containing folders (each folder representing a title)
+root_folder = './images/'
 
-# Generate embeddings for images in the folder
-embeddings, img_paths = generate_embeddings(image_folder, model)
+# Generate embeddings for images in each folder
+all_embeddings = []
 
-# Save embeddings and corresponding image paths to a pickle file
-data = {'embeddings': embeddings, 'img_paths': img_paths}
-with open('embeddings.pkl', 'wb') as f:
+pbar = tqdm(os.listdir(root_folder), desc="Processing folders", unit="folder")
+
+for folder_name in pbar:
+    # for folder_name in os.listdir(root_folder):
+    folder_path = os.path.join(root_folder, folder_name)
+    embeddings = generate_embeddings(folder_path, model)
+    all_embeddings.extend(embeddings)
+
+# Save embeddings, titles, and corresponding image paths to a pickle file
+data = {'embeddings': all_embeddings}
+with open('./pickle_files/embeddings.pkl', 'wb') as f:
     pickle.dump(data, f)
+
+# Convert vector data to string format
+all_embeddings_str = [(title, [str(val) for val in data]) for title, data in all_embeddings]
+
+# Create DataFrame
+df = pd.DataFrame(all_embeddings_str, columns=['Title', 'VectorData'])
+
+# Save DataFrame to CSV
+df.to_csv('embeddings.csv', index=False)
 
 print("Embeddings generated and saved successfully.")
