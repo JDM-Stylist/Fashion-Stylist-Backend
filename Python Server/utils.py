@@ -1,8 +1,14 @@
-import spacy
 import os
+import numpy as np
 import pandas as pd
 import pickle
+import spacy
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.layers import GlobalMaxPooling2D
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.neighbors import NearestNeighbors
 
 # Path to the directory where you want to save the model
 output_dir = 'cache/spacy_model/'
@@ -37,6 +43,25 @@ else:
     title_vectors = precompute_title_vectors(titles)
     pickle.dump(title_vectors, open('assets/title_vectors.pkl', 'wb'))
 
+# Load pre-trained ResNet50 model
+model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+model.trainable = False
+model = tf.keras.Sequential([
+    model,
+    GlobalMaxPooling2D()
+])
+
+# Load the embeddings from the pickle file
+with open('assets/embeddings.pkl', 'rb') as f:
+    data = pickle.load(f)
+
+vector_data_list = [entry[1] for entry in data['embeddings']]
+feature_list = np.array(vector_data_list)
+
+# Fit Nearest Neighbors model with the embeddings
+neighbors = NearestNeighbors(n_neighbors=15, algorithm='brute', metric='euclidean')
+neighbors.fit(feature_list)
+
 
 def get_top_matches(search, n=10):
     # Get word vector for the search title
@@ -52,3 +77,26 @@ def get_top_matches(search, n=10):
     closest_matches = [(titles[i], similarities[i]) for i in closest_indices]
 
     return closest_matches
+
+
+def get_similar_images(image_data):
+    # Load the query image
+    image_data = image_data.resize((224, 224))
+    img_array = image.img_to_array(image_data)
+    expanded_img_array = np.expand_dims(img_array, axis=0)
+    preprocessed_img = preprocess_input(expanded_img_array)
+
+    # Get the feature vector for the query image
+    result = model.predict(preprocessed_img).flatten()
+    normalized_result = result / np.linalg.norm(result)
+
+    # Find nearest neighbors
+    indices = neighbors.kneighbors([normalized_result], return_distance=False)
+
+    # print(indices)
+
+    # Get titles of closest results
+    closest_titles = [int(data['embeddings'][idx][0]) for idx in indices[0]]
+
+    # print(list(dict.fromkeys(closest_titles)))
+    return list(dict.fromkeys(closest_titles))

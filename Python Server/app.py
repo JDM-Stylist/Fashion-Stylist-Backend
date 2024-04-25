@@ -1,10 +1,14 @@
+import os
+from datetime import datetime
 import numpy as np
 import pandas as pd
-from flask import Flask, request, Response
-from utils import get_top_matches
+from PIL import Image
+from flask import Flask, request, Response, jsonify
+from utils import get_top_matches, get_similar_images
 
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = './cache/images'
 
 # Load Myntra Dataset
 myntra = pd.read_csv('assets/myntra.csv')
@@ -40,6 +44,29 @@ def get_recommend():
 
     recommend_records_json = myntra.iloc[output].to_json(orient='records')
     return Response(recommend_records_json, mimetype='application/json')
+
+
+@app.route('/imgsearch', methods=['POST'])
+def reverse_img_search():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image found in the request'}), 400
+
+    image = request.files['image']
+    if image.filename == '':
+        return jsonify({'error': 'No image selected for uploading'}), 400
+
+    path = os.path.join(app.config['UPLOAD_FOLDER'], datetime.now().strftime('%Y%m%d%H%M%S') + '_' + image.filename)
+    image.save(path)
+    image_data = Image.open(path)
+
+    similar_product_ids = get_similar_images(image_data)
+    similar_products = myntra[myntra['product_id'].isin(similar_product_ids)]
+    # Set product_id as the index
+    similar_products = similar_products.set_index('product_id')
+    # Reorder based on the order of similar_product_ids
+    similar_products = similar_products.loc[similar_product_ids]
+    similar_products_json = similar_products.reset_index().to_json(orient='records')
+    return Response(similar_products_json, mimetype='application/json')
 
 
 @app.route('/')
