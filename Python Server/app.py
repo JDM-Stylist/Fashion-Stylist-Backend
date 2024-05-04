@@ -81,6 +81,12 @@ def reverse_img_search():
     return Response(similar_products_json, mimetype='application/json')
 
 
+@app.route('/trending', methods=['GET'])
+def get_trending():
+    top_rating = myntra.sort_values(by='AverageRatingCount', ascending=False).head(10)
+    trending_products_json = top_rating.to_json(orient='records')
+    return Response(trending_products_json, mimetype='application/json')
+
 @app.route('/')
 def hello():
     return 'Hello, World!'
