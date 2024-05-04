@@ -4,10 +4,12 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from flask import Flask, request, Response, jsonify
+from flask_cors import CORS
 from utils import get_top_matches, get_similar_images
 
 
 app = Flask(__name__)
+CORS(app, origins='*')
 app.config['UPLOAD_FOLDER'] = './cache/images'
 
 # Load Myntra Dataset
