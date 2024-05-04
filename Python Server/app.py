@@ -35,6 +35,16 @@ def search():
     return Response(matching_records_json, mimetype='application/json')
 
 
+@app.route('/product', methods=['GET'])
+def get_product():
+    product_id = int(request.args.get('product_id', ''))
+    product = myntra[myntra['product_id'] == product_id]
+    if product.empty:
+        return jsonify({'error': 'Product not found'}), 404
+    product_json = product.to_json(orient='records')[0]
+    return Response(product_json, mimetype='application/json')
+
+
 @app.route('/recommend', methods=['GET'])
 def get_recommend():
     title = request.args.get('title', '')
