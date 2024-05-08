@@ -33,26 +33,23 @@ def search():
     return Response(matching_records_json, mimetype='application/json')
 
 
-myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1'])
-
+myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1','product_id'])
 
 @app.route('/shop', methods=['GET'])
 def route_shop():
-    if request.method == 'GET':
-        page = int(request.args.get('page', 1))
-        items_per_page = 10
-        start_index = (page - 1) * items_per_page
-        end_index = start_index + items_per_page
+    # Get the page number from the request arguments (default to 1 if not provided)
+    page = int(request.args.get('page', 1))
+    # Calculate the start and end indices for the products to display on this page
+    start_idx = (page - 1) * 10
+    end_idx = min(start_idx + 10, len(myntra1))
+    # Extract the URLs and titles for the products on this page
+    products_on_page = myntra1.iloc[start_idx:end_idx]
+    products_data = [{"imageUrl": row['img1'], "title": row['title'], "product_id": row['product_id']} for index, row in products_on_page.iterrows()]
+    # Return the list of products data as JSON data along with the page number
+    return jsonify({"products": products_data, "page": page})
 
-        # Filter and paginate the data
-        paginated_data = myntra1.iloc[start_index:end_index]
 
-        response_data = {
-            'productsData': paginated_data.to_dict(orient='records'),
-            'totalPages': len(myntra) // items_per_page + 1
-        }
 
-        return jsonify(response_data)
 
 
 @app.route('/product', methods=['GET'])
@@ -106,7 +103,6 @@ def get_trending():
     top_rating = myntra.sort_values(by='AverageRatingCount', ascending=False).head(10)
     trending_products_json = top_rating.to_json(orient='records')
     return Response(trending_products_json, mimetype='application/json')
-
 
 @app.route('/')
 def hello():
