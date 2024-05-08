@@ -7,7 +7,6 @@ from flask import Flask, request, Response, jsonify
 from flask_cors import CORS
 from utils import get_top_matches, get_similar_images
 
-
 app = Flask(__name__)
 CORS(app, origins='*')
 app.config['UPLOAD_FOLDER'] = './cache/images'
@@ -18,44 +17,25 @@ myntra = pd.read_csv('assets/myntra.csv')
 filtered_indices = pd.read_pickle(r'assets/filtered_indices.pkl')
 filtered_indices = np.array(filtered_indices)
 
+myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1'])
 
-@app.route('/search', methods=['GET'])
-def search():
-    query = request.args.get('query', '')
-    top_matches = get_top_matches(query)
-    result_dict = {title: float(score) for title, score in top_matches}
-    # print(result_dict)
+@app.route('/shop', methods=['GET'])
+def route_shop():
+    if request.method == 'GET':
+        page = int(request.args.get('page', 1))
+        items_per_page = 10
+        start_index = (page - 1) * items_per_page
+        end_index = start_index + items_per_page
 
-    matching_records = myntra[myntra['corpusData'].isin(result_dict.keys())]
-    matching_records['score'] = matching_records['corpusData'].map(result_dict)
-    matching_records = matching_records.sort_values(by='score', ascending=False)
-    matching_records_json = matching_records.to_json(orient='records')
-    # print(matching_records_json)
+        # Filter and paginate the data
+        paginated_data = myntra1.iloc[start_index:end_index]
 
-    return Response(matching_records_json, mimetype='application/json')
+        response_data = {
+            'productsData': paginated_data.to_dict(orient='records'),
+            'totalPages': len(myntra) // items_per_page + 1
+        }
 
-
-@app.route('/product', methods=['GET'])
-def get_product():
-    product_id = int(request.args.get('product_id', ''))
-    product = myntra[myntra['product_id'] == product_id]
-    if product.empty:
-        return jsonify({'error': 'Product not found'}), 404
-    product_json = product.to_json(orient='records')
-    return Response(product_json, mimetype='application/json')
-
-
-@app.route('/recommend', methods=['GET'])
-def get_recommend():
-    title = request.args.get('title', '')
-
-    # print(np.where(myntra['title'] == title))
-    index = np.where(myntra['title'] == title)[0][0]
-    output = filtered_indices[index][1:]
-    # print(output)
-
-    recommend_records_json = myntra.iloc[output].to_json(orient='records')
-    return Response(recommend_records_json, mimetype='application/json')
+        return jsonify(response_data)
 
 
 @app.route('/imgsearch', methods=['POST'])
@@ -80,7 +60,6 @@ def reverse_img_search():
     similar_products_json = similar_products.reset_index().to_json(orient='records')
     return Response(similar_products_json, mimetype='application/json')
 
-
 @app.route('/trending', methods=['GET'])
 def get_trending():
     top_rating = myntra.sort_values(by='AverageRatingCount', ascending=False).head(10)
@@ -90,7 +69,6 @@ def get_trending():
 @app.route('/')
 def hello():
     return 'Hello, World!'
-
 
 if __name__ == '__main__':
     app.run(debug=True)
