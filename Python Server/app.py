@@ -41,7 +41,7 @@ def get_product():
     product = myntra[myntra['product_id'] == product_id]
     if product.empty:
         return jsonify({'error': 'Product not found'}), 404
-    product_json = product.to_json(orient='records')[0]
+    product_json = product.to_json(orient='records')
     return Response(product_json, mimetype='application/json')
 
 
