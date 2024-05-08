@@ -81,6 +81,7 @@ def get_top_matches(search, n=10):
 
 def get_similar_images(image_data):
     # Load the query image
+    image_data = image_data.convert("RGB")
     image_data = image_data.resize((224, 224))
     img_array = image.img_to_array(image_data)
     expanded_img_array = np.expand_dims(img_array, axis=0)

@@ -33,7 +33,8 @@ def search():
     return Response(matching_records_json, mimetype='application/json')
 
 
-myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1','product_id'])
+myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1', 'product_id'])
+
 
 @app.route('/shop', methods=['GET'])
 def route_shop():
@@ -47,9 +48,6 @@ def route_shop():
     products_data = [{"imageUrl": row['img1'], "title": row['title'], "product_id": row['product_id']} for index, row in products_on_page.iterrows()]
     # Return the list of products data as JSON data along with the page number
     return jsonify({"products": products_data, "page": page})
-
-
-
 
 
 @app.route('/product', methods=['GET'])
@@ -103,6 +101,7 @@ def get_trending():
     top_rating = myntra.sort_values(by='AverageRatingCount', ascending=False).head(10)
     trending_products_json = top_rating.to_json(orient='records')
     return Response(trending_products_json, mimetype='application/json')
+
 
 @app.route('/')
 def hello():
