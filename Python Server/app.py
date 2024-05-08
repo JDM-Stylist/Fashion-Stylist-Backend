@@ -35,6 +35,7 @@ def search():
 
 myntra1 = pd.read_csv('assets/myntra.csv', usecols=['title', 'img1'])
 
+
 @app.route('/shop', methods=['GET'])
 def route_shop():
     if request.method == 'GET':
@@ -60,7 +61,7 @@ def get_product():
     product = myntra[myntra['product_id'] == product_id]
     if product.empty:
         return jsonify({'error': 'Product not found'}), 404
-    product_json = product.to_json(orient='records')[0]
+    product_json = product.to_json(orient='records')
     return Response(product_json, mimetype='application/json')
 
 
@@ -105,6 +106,7 @@ def get_trending():
     top_rating = myntra.sort_values(by='AverageRatingCount', ascending=False).head(10)
     trending_products_json = top_rating.to_json(orient='records')
     return Response(trending_products_json, mimetype='application/json')
+
 
 @app.route('/')
 def hello():
